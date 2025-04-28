@@ -9,7 +9,6 @@ click==8.1.8
 configobj==5.0.9
 configparser==7.2.0
 cryptography==44.0.2
-enchant==0.0.1
 etelemetry==0.3.1
 filelock==3.18.0
 flash==1.0.3
