@@ -4,13 +4,11 @@ import io
 import csv
 import fitz  # PyMuPDF for reading PDFs
 import pdfplumber
-import enchant
 from tqdm import tqdm
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
 
-dictionary = enchant.Dict("en_US")
 PDF_FOLDER = './pdfs'
 app.config['UPLOAD_FOLDER'] = PDF_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
@@ -162,14 +160,12 @@ def ocr_check():
                 page_text = pdf_page.extract_text()
                 if page_text:
                     all_text += '\n' + page_text
-        words = all_text.split()
-        en_count = sum(1 for word in words if dictionary.check(word.strip()))
-        percent = (en_count / len(words)) * 100 if words else 0
         metadata = pdfplumber.open(filepath).metadata
+        percent = "N/A (dictionary check disabled)"
         return render_template_string(base_template, title="OCR Tool", content=f"""
         <h1>OCR & English Percentage Tool</h1>
         <p><strong>File:</strong> {file.filename}</p>
-        <p><strong>English Percentage:</strong> {round(percent, 2)}%</p>
+        <p><strong>English Percentage:</strong> {percent}</p>
         <h2>Metadata:</h2>
         <pre>{metadata}</pre>
         <h2>Extracted Text:</h2>
