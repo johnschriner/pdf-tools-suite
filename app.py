@@ -173,7 +173,7 @@ def ocr_check():
         <a href="/ocr-check">Analyze another file</a>
         """)
     return render_template_string(base_template, title="OCR Tool", content="""
-    <h1>OCR & English Percentage Tool</h1>
+    <h1>How good is the OCR?</h1>
     <form method="post" enctype="multipart/form-data">
       <input type="file" name="file" accept="application/pdf"><br><br>
       <input type="submit" value="Upload and Analyze">
