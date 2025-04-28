@@ -163,7 +163,7 @@ def ocr_check():
         metadata = pdfplumber.open(filepath).metadata
         percent = "N/A (dictionary check disabled)"
         return render_template_string(base_template, title="OCR Tool", content=f"""
-        <h1>OCR & English Percentage Tool</h1>
+        <h1>How good is the OCR?</h1>
         <p><strong>File:</strong> {file.filename}</p>
         <p><strong>English Percentage:</strong> {percent}</p>
         <h2>Metadata:</h2>
