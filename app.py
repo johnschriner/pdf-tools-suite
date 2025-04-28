@@ -217,7 +217,9 @@ def search_pdfs_for_terms(terms):
             print(f"Error reading {filename}: {e}")
     return results
 
-if __name__ == '__main__':
+f __name__ == '__main__':
+    import os
+    port = int(os.environ.get('PORT', 5000))
     if not os.path.exists(PDF_FOLDER):
         os.makedirs(PDF_FOLDER)
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=port)
