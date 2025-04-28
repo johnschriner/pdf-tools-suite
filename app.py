@@ -74,6 +74,10 @@ def upload_terms():
         terms = [term.strip() for term in terms_text.splitlines() if term.strip()]
         results = search_pdfs_for_terms(terms)
         last_results = results
+        rows_html = ''.join(
+            f"<tr><td>{row['term']}</td><td>{row['filename']}</td><td>{row['page']}</td><td>{row['context']}</td></tr>"
+            for row in results
+        )
         return render_template_string(base_template, title="PDF Search", content=f"""
         <h1>PDF Search Tool</h1>
 
@@ -98,7 +102,7 @@ def upload_terms():
         <h2>Results</h2>
         <table border="1">
           <tr><th>Term</th><th>Filename</th><th>Page</th><th>Context</th></tr>
-          {''.join(f'<tr><td>{row['term']}</td><td>{row['filename']}</td><td>{row['page']}</td><td>{row['context']}</td></tr>' for row in results)}
+          {rows_html}
         </table>
         <br><a href="/download">Download CSV</a>
         """)
@@ -217,8 +221,7 @@ def search_pdfs_for_terms(terms):
             print(f"Error reading {filename}: {e}")
     return results
 
-f __name__ == '__main__':
-    import os
+if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     if not os.path.exists(PDF_FOLDER):
         os.makedirs(PDF_FOLDER)
