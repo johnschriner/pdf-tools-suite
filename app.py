@@ -72,7 +72,6 @@ def home():
     </ul>
     <p>Use the menu on the left to get started.</p>
     """)
-
 @app.route('/citation-extractor', methods=['GET', 'POST'])
 def citation_extractor():
     global last_citations
@@ -96,36 +95,47 @@ def citation_extractor():
                     citations.append({'citation': match.strip(), 'page': i + 1})
 
         last_citations = citations
-        table_rows = ''.join(f"<tr><td>{row['citation']}</td><td>{row['page']}</td></tr>" for row in citations)
+
+        if citations:
+            table_rows = ''.join(f"<tr><td>{row['citation']}</td><td>{row['page']}</td></tr>" for row in citations)
+            results_table = f"""
+            <h2>Results</h2>
+            <table border="1">
+              <tr><th>Citation</th><th>Page</th></tr>
+              {table_rows}
+            </table>
+            <br><a href="/download-citations">Download CSV</a>
+            """
+        else:
+            results_table = "<p>No legal citations were found in the uploaded PDF.</p>"
+
         return render_template_string(base_template, title="Legal Citation Extractor", content=f"""
         <h1>Legal Citation Extractor</h1>
         <div class='warning-box'>
           <strong>Note:</strong> This tool attempts to extract legal citations from the uploaded PDF.
-          However, not all citations may be detected correctly. Please double-check the results for accuracy.
+          However, not all citations may be detected correctly. Please double-check the results for accuracy.<br>
+          <em>Examples of supported citation formats: 410 U.S. 113, Roe v. Wade</em>
         </div>
         <form method="post" enctype="multipart/form-data">
           <input type="file" name="file" accept="application/pdf">
           <input type="submit" value="Upload and Extract">
         </form>
-        <h2>Results</h2>
-        <table border="1">
-          <tr><th>Citation</th><th>Page</th></tr>
-          {table_rows}
-        </table>
-        <br><a href="/download-citations">Download CSV</a>
+        {results_table}
         """)
 
     return render_template_string(base_template, title="Legal Citation Extractor", content="""
     <h1>Legal Citation Extractor</h1>
     <div class='warning-box'>
       <strong>Note:</strong> This tool attempts to extract legal citations from the uploaded PDF.
-      However, not all citations may be detected correctly. Please double-check the results for accuracy.
+      However, not all citations may be detected correctly. Please double-check the results for accuracy.<br>
+      <em>Examples of supported citation formats: 410 U.S. 113, Roe v. Wade</em>
     </div>
     <form method="post" enctype="multipart/form-data">
       <input type="file" name="file" accept="application/pdf">
       <input type="submit" value="Upload and Extract">
     </form>
     """)
+  
 @app.route('/pdf-search', methods=['GET', 'POST'])
 def pdf_search():
     global last_results
