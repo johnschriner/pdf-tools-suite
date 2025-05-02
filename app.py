@@ -197,7 +197,7 @@ def pdf_search():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
-        return redirect(url_for('upload_terms'))
+        return redirect(url_for('pdf_search'))
     files = request.files.getlist('file')
     uploaded_files = []
     for file in files:
@@ -208,7 +208,8 @@ def upload_file():
         flash(f"Successfully uploaded: {', '.join(uploaded_files)}")
     else:
         flash("No valid PDF files uploaded.")
-    return redirect(url_for('upload_terms'))
+    return redirect(url_for('pdf_search'))
+
 
 @app.route('/ocr-check', methods=['GET', 'POST'])
 def ocr_check():
