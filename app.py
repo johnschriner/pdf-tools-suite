@@ -154,9 +154,13 @@ def pdf_search():
         <div class='warning-box'>
           <strong>Note:</strong> This tool performs basic keyword matching across PDF text. It may miss OCR errors or variations in spelling. Please review results manually when accuracy is critical.
         </div>
+        <p><strong>Uploaded PDFs:</strong> {', '.join(os.listdir(PDF_FOLDER))}</p>
         <form action="/upload" method="post" enctype="multipart/form-data">
           <input type="file" name="file" multiple><br><br>
           <input type="submit" value="Upload PDFs">
+        </form>
+        <form action="/delete-pdfs" method="post" style="margin-top:10px;">
+          <input type="submit" value="Delete All PDFs" onclick="return confirm('Are you sure you want to delete all uploaded PDFs?');">
         </form>
         <hr>
         <form method="post" onsubmit="showSpinner()">
@@ -173,15 +177,19 @@ def pdf_search():
         </table>
         <br><a href="/download">Download CSV</a>
         """)
-    
-    return render_template_string(base_template, title="PDF Search Tool", content="""
+
+    return render_template_string(base_template, title="PDF Search Tool", content=f"""
     <h1>PDF Search Tool</h1>
     <div class='warning-box'>
       <strong>Note:</strong> This tool performs basic keyword matching across PDF text. It may miss OCR errors or variations in spelling. Please review results manually when accuracy is critical.
     </div>
+    <p><strong>Uploaded PDFs:</strong> {', '.join(os.listdir(PDF_FOLDER))}</p>
     <form action="/upload" method="post" enctype="multipart/form-data">
       <input type="file" name="file" multiple><br><br>
       <input type="submit" value="Upload PDFs">
+    </form>
+    <form action="/delete-pdfs" method="post" style="margin-top:10px;">
+      <input type="submit" value="Delete All PDFs" onclick="return confirm('Are you sure you want to delete all uploaded PDFs?');">
     </form>
     <hr>
     <form method="post" onsubmit="showSpinner()">
@@ -194,6 +202,7 @@ def pdf_search():
     """)
 
 
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -202,7 +211,8 @@ def upload_file():
     uploaded_files = []
     for file in files:
         if file.filename.endswith('.pdf'):
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], file.filename))
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+            file.save(filepath)
             uploaded_files.append(file.filename)
     if uploaded_files:
         flash(f"Successfully uploaded: {', '.join(uploaded_files)}")
@@ -210,6 +220,14 @@ def upload_file():
         flash("No valid PDF files uploaded.")
     return redirect(url_for('pdf_search'))
 
+
+@app.route('/delete-pdfs', methods=['POST'])
+def delete_pdfs():
+    for filename in os.listdir(PDF_FOLDER):
+        if filename.lower().endswith('.pdf'):
+            os.remove(os.path.join(PDF_FOLDER, filename))
+    flash("All PDF files have been deleted.")
+    return redirect(url_for('pdf_search'))
 
 @app.route('/ocr-check', methods=['GET', 'POST'])
 def ocr_check():
