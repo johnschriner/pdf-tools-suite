@@ -2,6 +2,7 @@ from flask import Flask, request, render_template_string, send_file, redirect, u
 import os
 import io
 import csv
+import re
 import fitz  # PyMuPDF for reading PDFs
 import pdfplumber
 from tqdm import tqdm
@@ -14,6 +15,7 @@ app.config['UPLOAD_FOLDER'] = PDF_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 last_results = []
+last_citations = []
 
 base_template = """
 <!doctype html>
@@ -29,6 +31,7 @@ base_template = """
   .content { margin-left: 220px; padding: 20px; }
   .spinner { display: none; margin-top: 20px; }
   .flash { background-color: #dff0d8; color: #3c763d; padding: 10px; margin-bottom: 20px; border: 1px solid #d6e9c6; border-radius: 5px; }
+  .warning-box { background-color: #fff3cd; color: #856404; padding: 10px; margin-bottom: 20px; border: 1px solid #ffeeba; border-radius: 5px; }
 </style>
 <script>
   function showSpinner() {
@@ -41,6 +44,7 @@ base_template = """
   <a href="/">Home</a>
   <a href="/pdf-search">PDF Search Tool</a>
   <a href="/ocr-check">OCR Tool</a>
+  <a href="/citation-extractor">Legal Citation Extractor</a>
 </div>
 <div class="content">
   {% with messages = get_flashed_messages() %}
@@ -60,11 +64,70 @@ base_template = """
 def home():
     return render_template_string(base_template, title="Home", content="""
     <h1>Welcome to the PDF Tools Suite</h1>
-    <p>Select a tool from the sidebar.</p>
+    <p>This toolkit includes:</p>
+    <ul>
+      <li><a href="/pdf-search">PDF Search Tool</a> – Search uploaded PDFs for keywords and export results.</li>
+      <li><a href="/ocr-check">OCR Tool</a> – Extract and display text from scanned PDFs.</li>
+      <li><a href="/citation-extractor">Legal Citation Extractor</a> – Identify legal citations in a PDF and export them.</li>
+    </ul>
+    <p>Use the menu on the left to get started.</p>
     """)
 
+@app.route('/citation-extractor', methods=['GET', 'POST'])
+def citation_extractor():
+    global last_citations
+    last_citations = []
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash("No file uploaded")
+            return redirect(request.url)
+        file = request.files['file']
+        if file.filename == '' or not file.filename.endswith('.pdf'):
+            flash("Please upload a valid PDF file.")
+            return redirect(request.url)
+        filepath = os.path.join(PDF_FOLDER, file.filename)
+        file.save(filepath)
+
+        citations = []
+        with pdfplumber.open(filepath) as pdf:
+            for i, page in enumerate(pdf.pages):
+                text = page.extract_text() or ""
+                for match in re.findall(r'\b\d{1,3}\s+U\.S\.\s+\d{1,5}\b|\b\w+ v\. \w+\b', text):
+                    citations.append({'citation': match.strip(), 'page': i + 1})
+
+        last_citations = citations
+        table_rows = ''.join(f"<tr><td>{row['citation']}</td><td>{row['page']}</td></tr>" for row in citations)
+        return render_template_string(base_template, title="Legal Citation Extractor", content=f"""
+        <h1>Legal Citation Extractor</h1>
+        <div class='warning-box'>
+          <strong>Note:</strong> This tool attempts to extract legal citations from the uploaded PDF.
+          However, not all citations may be detected correctly. Please double-check the results for accuracy.
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="file" name="file" accept="application/pdf">
+          <input type="submit" value="Upload and Extract">
+        </form>
+        <h2>Results</h2>
+        <table border="1">
+          <tr><th>Citation</th><th>Page</th></tr>
+          {table_rows}
+        </table>
+        <br><a href="/download-citations">Download CSV</a>
+        """)
+
+    return render_template_string(base_template, title="Legal Citation Extractor", content="""
+    <h1>Legal Citation Extractor</h1>
+    <div class='warning-box'>
+      <strong>Note:</strong> This tool attempts to extract legal citations from the uploaded PDF.
+      However, not all citations may be detected correctly. Please double-check the results for accuracy.
+    </div>
+    <form method="post" enctype="multipart/form-data">
+      <input type="file" name="file" accept="application/pdf">
+      <input type="submit" value="Upload and Extract">
+    </form>
+    """)
 @app.route('/pdf-search', methods=['GET', 'POST'])
-def upload_terms():
+def pdf_search():
     global last_results
     last_results = []
     if request.method == 'POST':
@@ -72,59 +135,54 @@ def upload_terms():
         terms = [term.strip() for term in terms_text.splitlines() if term.strip()]
         results = search_pdfs_for_terms(terms)
         last_results = results
-        rows_html = ''.join(
+        table_rows = ''.join(
             f"<tr><td>{row['term']}</td><td>{row['filename']}</td><td>{row['page']}</td><td>{row['context']}</td></tr>"
             for row in results
         )
-        return render_template_string(base_template, title="PDF Search", content=f"""
+        return render_template_string(base_template, title="PDF Search Tool", content=f"""
         <h1>PDF Search Tool</h1>
-
-        <h2>Upload PDFs</h2>
+        <div class='warning-box'>
+          <strong>Note:</strong> This tool performs basic keyword matching across PDF text. It may miss OCR errors or variations in spelling. Please review results manually when accuracy is critical.
+        </div>
         <form action="/upload" method="post" enctype="multipart/form-data">
           <input type="file" name="file" multiple><br><br>
           <input type="submit" value="Upload PDFs">
         </form>
-
         <hr>
-
-        <h2>Search Terms</h2>
         <form method="post" onsubmit="showSpinner()">
           <textarea name="terms" rows="10" placeholder="Enter one search term per line..."></textarea><br><br>
           <input type="submit" value="Search">
         </form>
-
         <div id="spinner" class="spinner">
           <p>Searching PDFs... Please wait.</p>
         </div>
-
         <h2>Results</h2>
         <table border="1">
           <tr><th>Term</th><th>Filename</th><th>Page</th><th>Context</th></tr>
-          {rows_html}
+          {table_rows}
         </table>
         <br><a href="/download">Download CSV</a>
         """)
-    return render_template_string(base_template, title="PDF Search", content="""
+    
+    return render_template_string(base_template, title="PDF Search Tool", content="""
     <h1>PDF Search Tool</h1>
-
-    <h2>Upload PDFs</h2>
+    <div class='warning-box'>
+      <strong>Note:</strong> This tool performs basic keyword matching across PDF text. It may miss OCR errors or variations in spelling. Please review results manually when accuracy is critical.
+    </div>
     <form action="/upload" method="post" enctype="multipart/form-data">
       <input type="file" name="file" multiple><br><br>
       <input type="submit" value="Upload PDFs">
     </form>
-
     <hr>
-
-    <h2>Search Terms</h2>
     <form method="post" onsubmit="showSpinner()">
       <textarea name="terms" rows="10" placeholder="Enter one search term per line..."></textarea><br><br>
       <input type="submit" value="Search">
     </form>
-
     <div id="spinner" class="spinner">
       <p>Searching PDFs... Please wait.</p>
     </div>
     """)
+
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
